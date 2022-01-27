@@ -1,6 +1,7 @@
 import struct
+import parse95
 
-from visidata import VisiData, Sheet, ItemColumn, AttrDict
+from visidata import VisiData, Sheet, AttrColumn, AttrDict, vd
 
 
 @VisiData.api
@@ -9,37 +10,27 @@ def open_res(vd, p):
 
 
 class ResSheet(Sheet):
+    rowtype = 'blocks'  # rowdef: parse95.DataBlock
     columns = [
-        ItemColumn('height', 'h', type=int),
-        ItemColumn('width', 'w', type=int),
-        ItemColumn('image'),
-        ItemColumn('filepos', type=int),
+        AttrColumn('index', type=int),
+        AttrColumn('offset', type=int),
+        AttrColumn('size'),
+        AttrColumn('magic'),        
     ]
     def iterload(self):
-        def asciify(c):
-            if c > 31 and c < 128: return chr(c)
-            if c == 0: return " "
-            return "*"
+        yield from parse95.Res(str(self.source))
 
-        contents = self.source.read_bytes()
-        i = contents.index(b'D3GR')
-        contents = contents[i+4:]
+    def openRow(self, row):
+        return FramesSheet(row.index, source=row)
 
-        while contents:
-            try:
-                i = contents.index(b'D3GR')
-            except ValueError:
-                i = len(contents)-1
-            buf = contents[888:i]
-            contents = contents[i+4:]
-
-            i = 0
-            while i < len(buf):
-                _, _, _, h, w = struct.unpack_from('<IIIHH', buf[i:])
-                i += 16
-                row = AttrDict(h=h, w=w, image=[])
-                for j in range(h):
-                    spriterow = ''.join([asciify(c) for c in buf[i:i+w]])
-                    row.image.append(spriterow)
-                    i += w
-                yield row
+class FramesSheet(Sheet):
+    rowtype = 'frames'  # rowdef: parse95.Frame
+    columns = [
+        AttrColumn('index', type=int),
+        AttrColumn('offset', type=int),
+        AttrColumn('h', type=int),
+        AttrColumn('w', type=int),
+        AttrColumn('rows'),        
+    ]
+    def iterload(self):
+        yield from self.source
