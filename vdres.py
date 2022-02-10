@@ -15,10 +15,10 @@ class ResSheet(Sheet):
         AttrColumn('index', type=int),
         AttrColumn('offset', type=int),
         AttrColumn('size'),
-        AttrColumn('magic'),        
+        AttrColumn('magic'),
     ]
     def iterload(self):
-        yield from parse95.Res(str(self.source))
+        yield from parse95.Res(str(self.source)).iter_blocks()
 
     def openRow(self, row):
         return FramesSheet(row.index, source=row)
@@ -30,7 +30,8 @@ class FramesSheet(Sheet):
         AttrColumn('offset', type=int),
         AttrColumn('h', type=int),
         AttrColumn('w', type=int),
-        AttrColumn('rows'),        
+        AttrColumn('rows'),
+        AttrColumn('hex_rows'),
     ]
     def iterload(self):
-        yield from self.source
+        yield from self.source.iter_frames()
