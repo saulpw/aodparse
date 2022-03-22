@@ -1,0 +1,55 @@
+body {
+    background-color: #333;
+}
+
+a:link {
+    color: #fff;
+}
+
+a:visited {
+    color: #c4f;
+}
+
+a:hover {
+    color: #f33;
+}
+
+h1 {
+    color: #fff;
+    clear: both;
+    margin: 20px;
+    padding-top: 15px;
+}
+
+div.toc {
+    columns: 4;
+}
+
+div.tocitem {
+    color: #fff;
+    margin-left: 20px;
+}
+
+div.block {
+    margin: 20px;
+    clear: both;
+    display: flex;
+    flex-flow: row wrap;
+}
+
+div.frame {
+    margin: 5px;
+    border: 1px solid #444;
+    float: left;
+    width: 100px;
+}
+
+div.frame img {
+    width: 100%;
+    height: auto;
+    border: 1px solid #777;
+}
+
+div.frame img:hover {
+    border: 1px solid #f33;
+}
