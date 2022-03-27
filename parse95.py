@@ -28,9 +28,17 @@ block_subtypes = {
     # should be layered at particular relative positions
     b'\x28\x00\x00\x00': "animation",
     b'\x2c\x00\x00\x00': "animation",
+    b'\x2c\x03\x00\x00': "animation",
+    b'\x3c\x03\x00\x00': "animation",
+    b'\x44\x03\x00\x00': "animation",
+    b'\x50\x03\x00\x00': "animation",
 
     b'\x2e\x00\x00\x00': "selectors/icons", # not sure what exactly these things are, multi-frame
+    b'\x30\x00\x00\x00': "animated icon(s)",
+    b'\x3c\x01\x00\x00': "animated icon(s)",
+    b'\x44\x00\x00\x00': "animated icon(s)",
     b'\x4c\x00\x00\x00': "animated icon(s)", # usually all frames are same-sized/same icon but one block contains several icons
+
     b'\x1c\x02\x00\x00': "font",
     b'\x24\x03\x00\x00': "background", # single-frame 320x200 image
 }
@@ -107,7 +115,8 @@ class Frame():
         self.offset = offset
         self.header = buf[:16]
         self.body = buf[16:]
-        self.h, self.w, = struct.unpack_from('<HH', self.header[-4:])
+        # guesses: self.c = delay, self.e = frame to composite onto
+        self.size, self.b, self.c, self.d, self.x, self.y, self.h, self.w = struct.unpack_from('<HHHHHHHH', self.header)
         self.byte_rows = []
         self.rows = []
         i = 0

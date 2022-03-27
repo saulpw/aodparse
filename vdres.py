@@ -39,6 +39,15 @@ class FramesSheet(Sheet):
     columns = [
         AttrColumn('index', type=int),
         AttrColumn('offset', type=int),
+        AttrColumn('size', type=int), # including 16-byte frame header
+
+        # 'b', 'c', and 'd' could be: delay, transparency, frame to composite onto...
+        AttrColumn('b', type=int),
+        AttrColumn('c', type=int),
+        AttrColumn('d', type=int),
+        AttrColumn('x', type=int),
+        AttrColumn('y', type=int),
+
         AttrColumn('h', type=int),
         AttrColumn('w', type=int),
         AttrColumn('rows'),
@@ -54,19 +63,46 @@ def make_palette():
         palette = list(f.read())
     return [4*b for b in palette]
 
-def make_img(palette, frame):
-    im = Image.new("L", (frame.w, frame.h))
+def make_img(palette, w, h, data):
+    im = Image.new("L", (w, h))
     im.putpalette(palette, rawmode="RGB")
-    im.putdata(b''.join(frame.byte_rows))
+    im.putdata(b''.join(data))
+    return im
+
+def make_mask(w, h, data):
+    im = Image.new("L", (w, h))
+    im.putdata(b''.join(data))
     return im
 
 @VisiData.api
-def save_frames(vd, p, rows):
+def save_frames(vd, p, frames):
     palette = make_palette()
-    frames = []
-    for row in rows:
-        frames.append(make_img(palette, row))
-    frames[0].save(str(p), append_images=frames[1:], optimize=False, save_all=True, duration=100, loop=0)
+    imgs = []
+    if frames:
+        h, w = frames[0].h, frames[0].w
+    for frame in frames:
+        pad = (frame.h != h or frame.w != w)
+        if pad:
+            left = b'\x00' * frame.x
+            right = b'\x00' * (w - frame.w - frame.x)
+            top = [b'\x00' * w] * frame.y
+            bottom = [b'\x00' * w] * (h - frame.h - frame.y)
+
+            padded = [b'\x00' * w] * frame.y
+            mask = [b'\x00' * w] * frame.y
+            for row in frame.byte_rows:
+                padded.append(b''.join([left,row,right]))
+                mask.append(b''.join([b'\xff' if p else b'\x00' for p in padded[-1]]))
+            if bottom:
+                padded = padded + bottom
+                mask = mask + bottom
+
+            img = make_img(palette, w, h, padded)
+            mask = make_mask(w, h, mask)
+            imgs.append(Image.composite(img, imgs[-1], mask))
+        else:
+            imgs.append(make_img(palette, w, h, frame.byte_rows))
+    imgs[0].save(str(p), append_images=imgs[1:], optimize=False, save_all=True, duration=150, loop=0)
 
 @VisiData.api
 def make_gallery(vd, dirname, blocks):
@@ -89,11 +125,19 @@ def make_gallery(vd, dirname, blocks):
             body += "</div> "
             continue
 
+        if block.block_subtype == "animation" or block.block_subtype == "animated icon(s)":
+            img_path = str(res_dir.joinpath(f"{str(block.index)}_all.png"))
+            try:
+                vd.save_frames(img_path, [frame for frame in block.iter_frames()])
+            except:
+                pass
+            body += f"<div class='frame'> <a target='_blank' href={img_path}> <img src={img_path}> </a> </div> "
+
         for frame in block.iter_frames():
             # display a broken img link for unparseable frames
             img_path = str(res_dir.joinpath(f"{str(block.index)}_{str(frame.index)}.png"))
             if frame.byte_rows:
-                im = make_img(palette, frame)
+                im = make_img(palette, frame.w, frame.h, frame.byte_rows)
                 im.save(img_path)
             body += f"<div class='frame'> <a target='_blank' href={img_path}> <img src={img_path}> </a> </div> "
         body += "</div> "
